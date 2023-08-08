@@ -21,6 +21,12 @@ export class Product extends BaseEntity {
 	@Column()
 	currency!: string;
 
+	@Column()
+	code!: string;
+
+	@Column()
+	description!: string;
+
 	@ManyToOne(() => Marketplace, (marketplace) => marketplace.products)
 	marketplace!: Marketplace;
 }

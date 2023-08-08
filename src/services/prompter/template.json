@@ -1,0 +1,20 @@
+According to your criteria and logical reasoning, read carefully the following set of metadata related to a sales item. It can be a household appliance.
+
+Extract the following attributes from the metadata correctly:
+
+name: Name of the item, you must consider that in the metadata the attribute can be called "title", by default it must be null.
+price: Price of the item, by default it must be null.
+currency: Currency in which the item can be purchased (associated to the price). Default is null.
+description: Search for the most accurate description related to the item, default is null.
+image: You must put the URL of the image that is associated with the item, it is possible that within the URL specifies the size of the image "small", "medium", "large", so you should always pick the largest possible, default is null.
+code: You must put the code attribute if it is found in the metadata, the code or also called "box code", is a code or ID that would identify the item in the store. otherwise it must be null.
+
+
+create a valid response in json format {
+  name,
+  price,
+  currency,
+  description,
+  image,
+  code
+}

@@ -1,3 +1,8 @@
+// Dependencies
+import { CheerioWebBaseLoader } from "langchain/document_loaders/web/cheerio";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { HtmlToTextTransformer } from "langchain/document_transformers/html_to_text";
+
 // Utils
 import {
 	extractLinksFromHtml,
@@ -66,10 +71,26 @@ async function scrapePage(url: string): Promise<void> {
 
 		console.log('\n===================================')
 		console.log(`🚬 -> Paginas evaluadas: ${visitedUrls.size} | 🗒️ -> Paginas pendientes: ${pendingUrls.size}`)
+
+
+		const loader = new CheerioWebBaseLoader(url);
+		const docs = await loader.load();
+		const splitter = RecursiveCharacterTextSplitter.fromLanguage("html");
+		const transformer = new HtmlToTextTransformer();
+		const sequence = splitter.pipe(transformer);
+		const tags = await sequence.invoke(docs);
+
 		const htmlContent = await getHtmlContent(url);
 		await extractLinksFromHtml(htmlContent, pendingUrls, visitedUrls);
 
-		const metadata = await extractMetadataFromHtml(htmlContent);
+		let metadata = await extractMetadataFromHtml(tags, htmlContent);
+
+		metadata = {
+			...metadata,
+			url,
+		}
+
+		console.log(metadata);
 
 		if (metadata && isValidMetadata(metadata)) {
 			console.log(`📦 -> Producto detectado: ${metadata.name}`);

@@ -12,6 +12,10 @@ import MarketplaceService from "../marketplace";
 
 // Config
 import {START_URL} from "../../config";
+import {promptToBody} from "../prompter";
+import {CheerioWebBaseLoader} from "langchain/document_loaders/web/cheerio";
+import {RecursiveCharacterTextSplitter} from "langchain/text_splitter";
+import {HtmlToTextTransformer} from "langchain/document_transformers/html_to_text";
 
 /**
  * Retrieves the HTML content of a web page.
@@ -43,47 +47,14 @@ export async function getHtmlContent(url: string): Promise<string> {
 	}
 }
 
-
-/**
- * Interface representing the structure of a product.
- *
- * @interface
- * @name IProduct
- * @property {string} [type] - The type of the product.
- * @property {string} [title] - The title or name of the product.
- * @property {string} [price] - The price of the product.
- * @property {string} [currency] - The currency in which the product is priced.
- * @property {string} [description] - The description of the product.
- * @property {string} [image] - The URL or path to the image of the product.
- * @property {string} [url] - The URL of the product page or listing.
- * @property {string} [brand] - The brand or manufacturer of the product.
- * @property {string} [availability] - The availability status of the product.
- */
 export interface IProduct {
 	name?: string;
 	price?: string;
 	currency?: string;
 	image?: string;
 	url?: string;
-}
-
-const extractItemProps = async (root: globalThis.cheerio.Root) => {
-	const itemsProps: { [key: string]: string } = {};
-	const foundItemsProps = new Set<string>();
-
-	const productDiv = root('[itemscope][itemtype="http://schema.org/Product"]');
-
-	productDiv.find('[itemprop]').each((index, element) => {
-		const itemprop = root(element).attr('itemprop');
-		const content = root(element).attr('content');
-
-		if (itemprop && content && !foundItemsProps.has(itemprop)) {
-			itemsProps[itemprop] = content.trim();
-			foundItemsProps.add(itemprop);
-		}
-	});
-
-	return itemsProps;
+	code?: string;
+	description?: string;
 }
 
 /**
@@ -94,64 +65,66 @@ const extractItemProps = async (root: globalThis.cheerio.Root) => {
  * @param {string} htmlContent - The HTML content of the web page.
  * @returns {Promise<void>}
  */
-export async function extractMetadataFromHtml(htmlContent: string): Promise<IProduct | null> {
-	const root = cheerio.load(htmlContent);
+interface MetaData {
+	[key: string]: string;
+}
 
-	let data: IProduct = {
-		name: undefined,
-		price: undefined,
-		currency: undefined,
-		image: undefined,
-		url: undefined,
-	};
+export async function extractMetadataFromHtml(tags: object[], htmlContent: string): Promise<IProduct | null> {
+	const $ = cheerio.load(htmlContent);
 
-	const itemProps = await extractItemProps(root);
+	const metaData: MetaData[] = [];
 
-	if (Object.keys(itemProps).length) {
-		data = {
-			name: itemProps.name,
-			image: itemProps.image,
-			url: itemProps.url,
-			currency: itemProps.priceCurrency,
-			price: itemProps.price
-		}
-	} else {
-		root(`meta[property^="og:"], meta[property^="product:"], meta[property^="twitter:"]`).each((index, element) => {
-			const property = root(element).attr('property') || root(element).attr('itemprop');
-			let content = root(element).attr('content') || '';
-			content = decode(content)
+	const excludedMetaNames = ['viewport', 'googlebot', 'theme-color', 'generator', 'keywords', 'robots', 'canonical'];
 
-			switch (property) {
-				case 'og:title':
-					data.name = content;
-					break;
+	$('meta').each((index, element) => {
+		const metaName = $(element).attr('name');
+		const metaProperty = $(element).attr('property');
+		const metaContent = $(element).attr('content');
 
-				case 'og:image':
-					data.image = content;
-					break;
+		if ((metaName && !excludedMetaNames.includes(metaName)) || (metaProperty && !excludedMetaNames.includes(metaProperty))) {
+			const meta: MetaData = {};
 
-				case 'og:url':
-					data.url = content;
-					break;
-
-				case 'product:price:currency':
-					data.currency = content;
-					break;
-
-				case 'product:price:amount':
-					data.price = content;
-					break;
-
-				default:
-					break;
+			if (metaName) {
+				meta['name'] = metaName;
 			}
-		});
+
+			if (metaProperty) {
+				meta['property'] = metaProperty;
+			}
+
+			if (metaContent) {
+				meta['content'] = metaContent;
+			}
+
+			metaData.push(meta);
+		}
+	});
+
+	$('html').find('meta[itemprop]').each((index, element) => {
+		const itemprop = $(element).attr('itemprop');
+		const content = $(element).attr('content');
+
+		if (itemprop && content) {
+			metaData.push({
+				[itemprop]: content,
+			});
+		}
+	});
+
+	const response: IProduct | undefined = await promptToBody(JSON.stringify([...tags, ...metaData]).toString())
+
+	if (!response || hasUndefinedValue(response)) {
+		return null;
 	}
 
-
-	return null;
-
-	//return hasUndefinedValue(data) ? null : data;
+	return {
+		name: response.name,
+		description: response.description,
+		image: response.image,
+		currency: response.currency,
+		price: response.price,
+		code: response.code,
+	}
 }
 
 /**
@@ -254,10 +227,8 @@ export function hasUndefinedValue<T extends {}>(obj: T): boolean {
 export function isValidMetadata(metadata: IProduct): boolean {
 	const requiredProperties: (keyof IProduct)[] = [
 		'name',
-		'image',
-		'url',
 		'price',
-		'currency',
+		'currency'
 	];
 
 	return requiredProperties.every((prop) => !!metadata[prop]);
@@ -271,8 +242,6 @@ export async function saveProduct(metadata: IProduct): Promise<void> {
 	if (!marketplace) {
 		return;
 	}
-
-
 
 	const product = new Product();
 	Object.assign(product, {
