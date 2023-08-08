@@ -1,0 +1,28 @@
+version: '3.7'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - MARKETPLACE_NAME=Devoto
+      - MARKETPLACE_COUNTRY=UY
+      - START_URL=https://www.devoto.com.uy
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=root
+      - DATABASE_PASSWORD=1234
+      - DATABASE_NAME=scraper-db
+  database:
+    platform: linux/x86_64
+    image: postgis/postgis:15-3.3
+    container_name: scraper-database
+    restart: always
+    environment:
+      POSTGRES_DATABASE: 'scraper-db'
+      POSTGRES_USER: 'root'
+      POSTGRES_PASSWORD: '1234'
+      POSTGRES_ROOT_PASSWORD: '1234'
+    ports:
+      - '5432:5432'
