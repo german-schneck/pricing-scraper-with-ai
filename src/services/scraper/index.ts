@@ -15,6 +15,7 @@ import {
 // Database
 import {START_URL} from "../../config";
 import MarketplaceService from "../marketplace";
+import ProductService from "../product";
 
 const visitedUrls = new Set<string>();
 const pendingUrls = new Set<string>();
@@ -62,10 +63,11 @@ async function scrapePage(url: string): Promise<void> {
 			return;
 		}
 
-		const isProductExists = await mkService.getProductByURL(marketplace.id, url);
+		const productService = new ProductService();
+		const isProductExists = await productService.getByURL(url);
 
 		if (visitedUrls.has(url) || isProductExists) {
-			console.log(`⭕ -> Producto ignorado: ${isProductExists?.name}`)
+			console.log(`🦵🏻-> Producto ignorado: ${isProductExists?.name}`)
 			return;
 		}
 

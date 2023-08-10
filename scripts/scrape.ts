@@ -5,14 +5,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Database
-import {AppDataSource} from "./data-source";
+import {AppDataSource} from "../src/data-source";
 
 // Services
-import scraper from './services/scraper';
-import MarketplaceService from "./services/marketplace";
+import scraper from '../src/services/scraper';
+import MarketplaceService from "../src/services/marketplace";
 
 // Config
-import {MARKETPLACE_COUNTRY, MARKETPLACE_NAME, START_URL} from "./config";
+import {MARKETPLACE_COUNTRY, MARKETPLACE_NAME, START_URL} from "../src/config";
 
 
 (async () => {

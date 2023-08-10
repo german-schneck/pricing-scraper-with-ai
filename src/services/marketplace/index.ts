@@ -1,7 +1,6 @@
 // Database
 import {AppDataSource} from "../../data-source";
 import {Marketplace} from "../../entity/Marketplace";
-import {Product} from "../../entity/Product";
 
 /**
  * Represents a service for interacting with the Marketplace entity.
@@ -62,25 +61,5 @@ export default class MarketplaceService {
 
 		await AppDataSource.manager.save(marketplace);
 		return marketplace;
-	}
-
-	/**
-	 * Retrieves a product by its URL and associated marketplace ID.
-	 *
-	 * @method
-	 * @name getProductByURL
-	 * @param {number} marketplaceId - The ID of the marketplace to which the product belongs.
-	 * @param {string} url - The URL of the product to retrieve.
-	 * @returns {Promise<Product | null>} A Promise that resolves to the found product entity or null if not found.
-	 */
-	async getProductByURL(marketplaceId: number, url: string): Promise<Product | null> {
-		return await AppDataSource.manager.findOne(Product, {
-			where: {
-				url,
-				marketplace: {
-					id: marketplaceId
-				}
-			}
-		});
 	}
 }
